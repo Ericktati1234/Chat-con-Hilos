@@ -7,13 +7,13 @@ mensajes = []  # Lista para almacenar el historial de mensajes
 def manejar_cliente(cliente_socket, direccion):
     print(f"[*] Nueva conexión desde {direccion}")
 
-    # Enviar historial de mensajes al nuevo cliente
+    # Enviar historial de mensajes al nuevo cliente con saltos de línea
     for mensaje in mensajes:
-        cliente_socket.send(mensaje.encode("utf-8"))
+        cliente_socket.send((mensaje + "\n").encode("utf-8"))
 
     while True:
         try:
-            mensaje = cliente_socket.recv(1024).decode("utf-8")
+            mensaje = cliente_socket.recv(1024).decode("utf-8").strip()
             if not mensaje:
                 break
 
@@ -23,9 +23,9 @@ def manejar_cliente(cliente_socket, direccion):
             # Guardar mensaje en el historial
             mensajes.append(mensaje_formateado)
 
-            # Enviar el mensaje a todos los clientes, incluido el que lo envió
+            # Enviar el mensaje a todos los clientes con salto de línea
             for cliente in clientes:
-                cliente.send(mensaje_formateado.encode("utf-8"))
+                cliente.send((mensaje_formateado + "\n").encode("utf-8"))
 
         except:
             break

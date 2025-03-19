@@ -35,8 +35,9 @@ class ClienteChat:
     def recibir_mensajes(self):
         while True:
             try:
-                mensaje = self.cliente.recv(1024).decode("utf-8")
-                self.mostrar_mensaje(mensaje)
+                mensajes = self.cliente.recv(1024).decode("utf-8")
+                for mensaje in mensajes.splitlines():  # Procesamos cada mensaje individualmente
+                    self.mostrar_mensaje(mensaje)
             except:
                 break
 
