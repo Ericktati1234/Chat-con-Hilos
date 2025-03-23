@@ -1,71 +1,99 @@
 import socket
 import threading
 import tkinter as tk
-from tkinter import scrolledtext
-from tkinter import ttk
+from tkinter import scrolledtext, ttk, messagebox
 
-class ClienteChat:
-    def __init__(self, root, cliente_nombre):
-        self.root = root
-        self.cliente_nombre = cliente_nombre
-        self.root.title(f"Chat Cliente - {self.cliente_nombre}")
-        self.root.geometry("450x550")
-        self.root.configure(bg="#1e272e")
+class ChatCliente:
+    def __init__(self, ventana, nombre_usuario):
+        self.ventana = ventana
+        self.nombre_usuario = nombre_usuario
+        self.ventana.title(f"Chat - {self.nombre_usuario}")
+        self.ventana.geometry("500x600")
+        self.ventana.configure(bg="#2c3e50")
 
-        self.estilos()
-        
-        self.frame_chat = ttk.Frame(root, padding=10, style="TFrame")
-        self.frame_chat.pack(fill=tk.BOTH, expand=True)
+        self.configurar_estilos()
+        self.crear_interfaz()
 
-        self.label_titulo = ttk.Label(self.frame_chat, text=f"Chat - {self.cliente_nombre}", font=("Arial", 16, "bold"), foreground="#f5f6fa", background="#1e272e")
-        self.label_titulo.pack(pady=5)
-
-        self.chat_area = scrolledtext.ScrolledText(self.frame_chat, wrap=tk.WORD, width=50, height=20, font=("Arial", 12), bg="#dcdde1", fg="#2c3e50")
-        self.chat_area.pack(padx=10, pady=10, fill=tk.BOTH, expand=True)
-        self.chat_area.config(state=tk.DISABLED)
-        
-        self.mensaje_entry = ttk.Entry(self.frame_chat, font=("Arial", 12))
-        self.mensaje_entry.pack(padx=10, pady=5, fill=tk.X, ipady=5)
-        self.mensaje_entry.bind("<Return>", self.enviar_mensaje)
-
-        self.boton_enviar = ttk.Button(self.frame_chat, text="Enviar", command=self.enviar_mensaje, style="TButton")
-        self.boton_enviar.pack(pady=5, fill=tk.X, ipady=8)
-
-        self.cliente = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.cliente.connect(("127.0.0.1", 12345))
+        try:
+            self.conexion = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.conexion.connect(("127.0.0.1", 12345))
+        except Exception as error:
+            messagebox.showerror("Error", f"No se pudo conectar al servidor: {error}")
+            ventana.destroy()
+            return
 
         self.hilo_recepcion = threading.Thread(target=self.recibir_mensajes, daemon=True)
         self.hilo_recepcion.start()
 
-    def estilos(self):
+    def configurar_estilos(self):
         estilo = ttk.Style()
-        estilo.configure("TFrame", background="#1e272e")
-        estilo.configure("TButton", font=("Arial", 14, "bold"), padding=12, background="#0050a0", foreground="black", borderwidth=0, relief="flat")
-        estilo.map("TButton", background=[("active", "#003d80")], foreground=[("active", "black")])
+        estilo.configure("Marco.TFrame", background="#34495e")
+        estilo.configure("Boton.TButton", font=("Arial", 12, "bold"), padding=10, background="#3498db", foreground="white")
+        estilo.map("Boton.TButton", background=[("active", "#2980b9")])
 
-    def enviar_mensaje(self, event=None):
-        mensaje = self.mensaje_entry.get()
+    def crear_interfaz(self):
+        marco_principal = ttk.Frame(self.ventana, padding=10, style="Marco.TFrame")
+        marco_principal.pack(fill=tk.BOTH, expand=True)
+
+        etiqueta_titulo = ttk.Label(
+            marco_principal,
+            text=f"Bienvenido, {self.nombre_usuario}",
+            font=("Arial", 18, "bold"),
+            foreground="#ecf0f1",
+            background="#34495e",
+        )
+        etiqueta_titulo.pack(pady=10)
+
+        self.area_chat = scrolledtext.ScrolledText(
+            marco_principal,
+            wrap=tk.WORD,
+            width=60,
+            height=25,
+            font=("Arial", 12),
+            bg="#ecf0f1",
+            fg="#2c3e50",
+        )
+        self.area_chat.pack(padx=10, pady=10, fill=tk.BOTH, expand=True)
+        self.area_chat.config(state=tk.DISABLED)
+
+        self.campo_mensaje = ttk.Entry(marco_principal, font=("Arial", 12))
+        self.campo_mensaje.pack(padx=10, pady=5, fill=tk.X, ipady=5)
+        self.campo_mensaje.bind("<Return>", self.enviar_mensaje)
+
+        boton_enviar = ttk.Button(
+            marco_principal, text="Enviar", command=self.enviar_mensaje, style="Boton.TButton"
+        )
+        boton_enviar.pack(pady=5, fill=tk.X, ipady=8)
+
+    def enviar_mensaje(self, evento=None):
+        mensaje = self.campo_mensaje.get()
         if mensaje:
-            self.cliente.send(mensaje.encode("utf-8"))
-            self.mensaje_entry.delete(0, tk.END)
+            try:
+                self.conexion.send(mensaje.encode("utf-8"))
+                self.campo_mensaje.delete(0, tk.END)
+            except Exception as error:
+                messagebox.showerror("Error", f"Error enviando mensaje: {error}")
 
     def recibir_mensajes(self):
         while True:
             try:
-                mensajes = self.cliente.recv(1024).decode("utf-8")
-                for mensaje in mensajes.splitlines():
-                    self.mostrar_mensaje(mensaje)
-            except:
+                mensaje = self.conexion.recv(1024).decode("utf-8")
+                if not mensaje:
+                    raise ConnectionResetError("Servidor desconectado")
+                self.mostrar_mensaje(mensaje)
+            except Exception as error:
+                self.mostrar_mensaje("[Desconectado del servidor]")
+                messagebox.showwarning("Desconectado", "Se perdió la conexión con el servidor.")
                 break
 
     def mostrar_mensaje(self, mensaje):
-        self.chat_area.config(state=tk.NORMAL)
-        self.chat_area.insert(tk.END, mensaje + "\n")
-        self.chat_area.config(state=tk.DISABLED)
-        self.chat_area.yview(tk.END)
+        self.area_chat.config(state=tk.NORMAL)
+        self.area_chat.insert(tk.END, mensaje + "\n")
+        self.area_chat.config(state=tk.DISABLED)
+        self.area_chat.yview(tk.END)
 
 if __name__ == "__main__":
-    nombre_cliente = input("Ingresa tu nombre: ")
-    root = tk.Tk()
-    app = ClienteChat(root, nombre_cliente)
-    root.mainloop()
+    nombre = input("Ingresa tu nombre: ")
+    ventana_principal = tk.Tk()
+    app = ChatCliente(ventana_principal, nombre)
+    ventana_principal.mainloop()
